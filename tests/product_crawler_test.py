@@ -1,8 +1,10 @@
-import pytest
-import requests
+import sys
 
 from unittest.mock import Mock
 from unittest.mock import patch
+
+import pytest
+import requests
 
 import product_crawler as crawler
 
@@ -21,7 +23,7 @@ def test_request_html(mock_get):
 
 def test_parse_input_price():
     assert crawler.parse_unit_price('&pound1.50;/unit') == 1.50
-    assert crawler.parse_unit_price('&pound;/unit') == None
+    assert crawler.parse_unit_price('&pound;/unit') is None
     assert crawler.parse_unit_price('&pound1.abc;/unit') == 1.0
 
 def test_parse_description():
@@ -107,15 +109,15 @@ def test_parse_product_list_no_values():
     """
     product_list = crawler.parse_products_list(html)
     res = next(product_list)
-    assert res.get('title') == None
-    assert res.get('uri') == None
-    assert res.get('unit_price') == None
+    assert res.get('title') is None
+    assert res.get('uri') is None
+    assert res.get('unit_price') is None
 
 @patch('product_crawler.request_html')
 @patch('product_crawler.get_page_size')
 @patch('product_crawler.parse_description')
 def test_construct_product_list_desc(desc_mock, size_mock, req_mock):
-    products = [{'uri': ''},{'uri': ''}]
+    products = [{'uri': ''}, {'uri': ''}]
     desc_mock.side_effect = ['description1', 'description2']
     res = crawler.construct_product_list(products)
     assert desc_mock.call_count == 2
@@ -126,7 +128,7 @@ def test_construct_product_list_desc(desc_mock, size_mock, req_mock):
 @patch('product_crawler.get_page_size')
 @patch('product_crawler.parse_description')
 def test_construct_product_list_size(desc_mock, size_mock, req_mock):
-    products = [{'uri': ''},{'uri': ''}]
+    products = [{'uri': ''}, {'uri': ''}]
     size_mock.side_effect = ['1kb', '2kb']
     res = crawler.construct_product_list(products)
     assert size_mock.call_count == 2
@@ -137,7 +139,7 @@ def test_construct_product_list_size(desc_mock, size_mock, req_mock):
 @patch('product_crawler.get_page_size')
 @patch('product_crawler.parse_description')
 def test_construct_product_list_title(desc_mock, size_mock, req_mock):
-    products = [{'title': 'title1'},{'title': 'title2'}]
+    products = [{'title': 'title1'}, {'title': 'title2'}]
     res = crawler.construct_product_list(products)
     assert res[0]['title'] == 'title1'
     assert res[1]['title'] == 'title2'
@@ -146,35 +148,33 @@ def test_construct_product_list_title(desc_mock, size_mock, req_mock):
 @patch('product_crawler.get_page_size')
 @patch('product_crawler.parse_description')
 def test_construct_product_list_price(desc_mock, size_mock, req_mock):
-    products = [{'unit_price': 1},{'unit_price': 2}]
+    products = [{'unit_price': 1}, {'unit_price': 2}]
     res = crawler.construct_product_list(products)
     assert res[0]['unit_price'] == 1
     assert res[1]['unit_price'] == 2
-
 
 @patch('product_crawler.request_html')
 def test_crawl_sys_exit(req_mock):
     req_mock.side_effect = requests.exceptions.HTTPError
     uri = 'domain.com'
-    with pytest.raises(SystemExit) as e:
+    with pytest.raises(SystemExit) as exit_message:
         crawler.crawl(uri)
-        assert 'Bad request when getting: ' in e
-        assert uri in e
-
+        assert 'Bad request when getting: ' in exit_message
+        assert uri in exit_message
 
 @patch('product_crawler.parse_products_list')
 @patch('product_crawler.request_html')
 def test_crawl_sys_linked_page_fail(req_mock, prod_list_mock):
     prod_list_mock.side_effect = requests.exceptions.HTTPError
-    with pytest.raises(SystemExit) as e:
+    with pytest.raises(SystemExit) as http_error:
         crawler.crawl('')
-        assert 'An error occured when getting a linked page: ' in e
+        assert 'An error occured when getting a linked page: ' in http_error
 
 @patch('product_crawler.construct_product_list')
 @patch('product_crawler.parse_products_list')
 @patch('product_crawler.request_html')
 def test_crawl_sum(req_mock, prod_list_mock, construct_list_mock):
-    prod_list_mock.return_value = [{'unit_price': 1.0},{'unit_price': 2.0}]
+    prod_list_mock.return_value = [{'unit_price': 1.0}, {'unit_price': 2.0}]
     res = crawler.crawl('')
     assert res.get('total_product_sum') == '3.00'
 
@@ -186,3 +186,18 @@ def test_crawl_product_list(req_mock, prod_list_mock, construct_list_mock):
     construct_list_mock.return_value = prod_list
     res = crawler.crawl('')
     assert res.get('product_list') == prod_list
+
+@patch('json.dumps')
+@patch('product_crawler.crawl')
+def test_main(crawl_mock, json_mock):
+    res = {'a': 123}
+    crawl_mock.return_value = res
+
+    with patch.object(sys, 'argv', ['python', 'uri1']):
+        crawler.main()
+        json_mock.assert_called_once_with(res)
+
+def test_main_exits():
+    with patch.object(sys, 'argv', ['']), pytest.raises(SystemExit) as sys_exit:
+        crawler.main()
+        assert 'You need to specify a uri to parse' in sys_exit
