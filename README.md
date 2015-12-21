@@ -30,6 +30,9 @@ Avocado, Ripe & Ready x2", "description": "Avocados", "size": "43.4kb"}, {"unit_
 
 Uses `py.test` for both unit and integration tests. Run the tests with `py.test -v` for tests with verbose output
 
+To only run unit tests: `py.test tests/product_crawler_test.py`
+To only run integration tests: `py.test tests/integration_test.py`
+
 ###Integration Tests
 
 I'm assuming I can use the s3 page as a test server for the integration tests. I didn't want to introduce another framework for these tests so i made a simple solution using a subprocess.

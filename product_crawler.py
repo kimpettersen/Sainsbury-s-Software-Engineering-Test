@@ -23,7 +23,6 @@ import sys
 import requests
 
 from bs4 import BeautifulSoup
-from pprint import pprint
 
 
 def request_html(uri):
@@ -90,13 +89,13 @@ def parse_products_list(html):
     if not product_list:
         raise ValueError('Could not find element with class \'productLister\'')
 
-    for li in product_list.select('li'):
+    for li_element in product_list.select('li'):
         title = None
         uri = None
         unit_price = None
 
-        title_html = li.select('.productInfo h3 a')
-        price_html = li.select('.pricePerUnit')
+        title_html = li_element.select('.productInfo h3 a')
+        price_html = li_element.select('.pricePerUnit')
 
         if title_html:
             title = title_html[0].get_text().strip()
@@ -153,15 +152,16 @@ def crawl(uri):
 
     try:
         product_list_request = request_html(uri)
-    except requests.exceptions.HTTPError as e:
-        sys.exit('Bad request when getting: {}\n{}\n'.format(uri, e))
+    except requests.exceptions.HTTPError as http_error:
+        sys.exit('Bad request when getting: {}\n{}\n'.format(uri, http_error))
 
     html = product_list_request.text
     try:
         products = list(parse_products_list(html))
-    except requests.exceptions.HTTPError as e:
-        m = 'An error occured when getting a linked page\n{}'.format(e)
-        sys.exit(m)
+    except requests.exceptions.HTTPError as http_error:
+        message = 'An error occured when getting a linked page\n{}'
+        message = message.format(http_error)
+        sys.exit(message)
     else:
         total_sum = sum([product.get('unit_price') for product in products])
         total_sum = format(total_sum, '.2f')
@@ -170,13 +170,21 @@ def crawl(uri):
             'total_product_sum': total_sum
         }
 
-if __name__ == '__main__':
+def main():
     """
         - Crawls each uri passed to the script
         - Prints separate json object for each passed uri
     """
     args = sys.argv[1:]
     print('Started Scraping')
+
+    if len(args) < 1:
+        sys.exit('You need to specify a uri to parse')
+
     for arg in args:
         products = crawl(arg)
         print(json.dumps(products))
+
+
+if __name__ == '__main__':
+    main()
