@@ -3,8 +3,12 @@
 Requires Python 3.5 (There's no reason it shouldn't work with at least 3.4).
 For simplicity I've purposely not followed an OO pattern. If this script were to be used by another module and were responsible for storing some sort of state, I would probably want to change that.
 
+##Run as a Docker container
 
-##Run it
+- Make sure you hve Docker installed
+- `docker run kimpettersen/sainsburys-product-crawler`
+
+##Clone and run locally
 
 - Create a virtualenv with python 3.5 https://virtualenv.readthedocs.org/en/latest/
 - Install dependencies: `pip install -r requirements.txt`
